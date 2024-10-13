@@ -1,5 +1,6 @@
 import json
 import pygame
+import math
 
 AUTOTILE_MAP = {
     tuple(sorted([(1, 0), (0, 1)])): 0,
@@ -13,9 +14,6 @@ AUTOTILE_MAP = {
     tuple(sorted([(1, 0), (-1, 0), (0, 1), (0, -1)])): 8
 }
 
-# offsets for a given tile, to get the 9 tiles around it and including it
-NEIGHBOR_OFFSETS = [(-1, 0), (-1, -1), (0, -1), (1, -1),
-                    (1, 0), (0, 0), (-1, 1), (0, 1), (1, 1)]
 PHYSICS_TILES = {'grass', 'stone'}  # faster than list
 AUTOTILE_TYPES = {'grass', 'stone'}
 
@@ -23,14 +21,16 @@ AUTOTILE_TYPES = {'grass', 'stone'}
 class Tilemap:
     def __init__(self, game, tile_size=16):
         self.game = game
-        self.tile_size = tile_size
-        self.tilemap = {}  # every tile
-        self.offgrid_tiles = []
+        self.tile_size = tile_size # every tile is square with side length of 16 pixels
+        self.tilemap = {}  # every tile on grid, only handle physics on these tiles
+        self.offgrid_tiles = [] # tiles that might be placed off grid
 
-    def extract(self, id_pairs, keep=False):
+    # get info about some tiles and keep/delete them
+    # type_varient_pairs: (type: string, variant: int)
+    def extract(self, type_varient_pair_list, keep=False):
         matches = []
         for tile in self.offgrid_tiles.copy():
-            if (tile['type'], tile['variant']) in id_pairs:
+            if (tile['type'], tile['variant']) in type_varient_pair_list:
                 matches.append(tile.copy())
                 if not keep:
                     self.offgrid_tiles.remove(tile)
@@ -38,7 +38,7 @@ class Tilemap:
         # may cause RuntimeError: dictionary changed size during iteration                    
         for loc in list(self.tilemap):
             tile = self.tilemap[loc]
-            if (tile['type'], tile['variant']) in id_pairs:
+            if (tile['type'], tile['variant']) in type_varient_pair_list:
                 matches.append(tile.copy())
                 matches[-1]['pos'] = matches[-1]['pos'].copy()
                 matches[-1]['pos'][0] *= self.tile_size
@@ -53,18 +53,45 @@ class Tilemap:
         if tile_loc in self.tilemap:
             if self.tilemap[tile_loc]['type'] in PHYSICS_TILES:
                 return self.tilemap[tile_loc]
-        
-    def tiles_around(self, pos):
-        tiles = []
-        tile_loc = (int(pos[0] // self.tile_size),
-                    int(pos[1] // self.tile_size))
-        for offset in NEIGHBOR_OFFSETS:
-            check_loc = str(tile_loc[0] + offset[0]) + \
-                ';' + str(tile_loc[1] + offset[1])
-            if check_loc in self.tilemap:
-                tiles.append(self.tilemap[check_loc])
-        return tiles
+    
+    def physics_rects_around(self, pos, entity_width, entity_height):
+        rects = []
+        for tile in self.tiles_around(pos, entity_width, entity_height):
+            if tile['type'] in PHYSICS_TILES:
+                rects.append(pygame.Rect(tile['pos'][0] * self.tile_size, 
+                                         tile['pos'][1] * self.tile_size, 
+                                         self.tile_size,
+                                         self.tile_size))
+        return rects
 
+    def tiles_around(self, enitity_pos, entity_img_width, entity_img_height):
+        outline_locs = []
+        tiles_num_x = math.ceil(entity_img_width / self.tile_size)
+        tiles_num_y = math.ceil(entity_img_height / self.tile_size)
+        entity_tile_loc = (int(enitity_pos[0] // self.tile_size), int(enitity_pos[1] // self.tile_size))
+        # tiles on the left and right
+        for i in {-1, tiles_num_x}:
+            for j in range(0, tiles_num_y + 1):
+                outline_loc = str(max(0, entity_tile_loc[0] + i)) + ';' + str(entity_tile_loc[1] + j)
+                if outline_loc in self.tilemap:
+                    outline_locs.append(self.tilemap[outline_loc])
+        # tiles on the top and bottom
+        for i in {-1, tiles_num_y}:
+            for j in range(0, tiles_num_x + 1):
+                outline_loc = str(entity_tile_loc[0] + j ) + ';' + str(entity_tile_loc[1] + i)
+                if outline_loc in self.tilemap:
+                    outline_locs.append(self.tilemap[outline_loc])
+        topleft_loc = str(max(0, entity_tile_loc[0] - 1)) + ';' + str(max(0, entity_tile_loc[1] - 1))
+        if topleft_loc in self.tilemap:
+            outline_locs.append(self.tilemap[topleft_loc])
+        for i in range(0, tiles_num_x):
+            for j in range(0, tiles_num_y):
+                selfloc = str(entity_tile_loc[0] + i) + ';' + str(entity_tile_loc[1] + j)
+                if selfloc in self.tilemap:
+                    outline_locs.append(self.tilemap[selfloc])
+        return outline_locs
+                
+        
     def save(self, path):
         f = open(path, 'w')
         json.dump({'tilemap': self.tilemap, 'tile_size': self.tile_size,
@@ -78,14 +105,6 @@ class Tilemap:
         self.tilemap = map_data['tilemap']
         self.tile_size = map_data['tile_size']
         self.offgrid_tiles = map_data['offgrid']
-
-    def physics_rects_around(self, pos):
-        rects = []
-        for tile in self.tiles_around(pos):
-            if tile['type'] in PHYSICS_TILES:
-                rects.append(pygame.Rect(
-                    tile['pos'][0] * self.tile_size, tile['pos'][1] * self.tile_size, self.tile_size, self.tile_size))
-        return rects
 
     def autotile(self):
         for loc in self.tilemap:
