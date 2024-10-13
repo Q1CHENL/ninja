@@ -6,11 +6,11 @@ from scripts.entity import PhysicsEntity
 from scripts.spark import Spark
 from scripts.particle import Particle
 
+
 class Enemy(PhysicsEntity):
     def __init__(self, game, pos, size):
         super().__init__(game, 'enemy', pos, size)
-
-        self.walking = 0
+        self.walking = 0  # remaining time units to walk
 
     def update(self, tilemap, movement=(0, 0)):
         if self.walking:
@@ -23,29 +23,31 @@ class Enemy(PhysicsEntity):
             else:
                 # flip if not physical tiles around
                 self.flip = not self.flip
-            # cut to 0 over time if walking
+            # reduce to 0 over time if already walking
             self.walking = max(0, self.walking - 1)
             if not self.walking:
-                dis = (self.game.player.pos[0] - self.pos[0],
+                # distance to player
+                dtp = (self.game.player.pos[0] - self.pos[0],
                        self.game.player.pos[1] - self.pos[1])
-                if (abs(dis[1]) < 16):
-                    if (self.flip and dis[0] < 0):
+                if (abs(dtp[1]) < 16):
+                    if (self.flip and dtp[0] < 0):
                         self.game.sfx['shoot'].play()
+                        # shoot projectile
                         self.game.projectiles.append(
                             [[self.rect().centerx - 7, self.rect().centery], -1.5, 0])
-                        # spawen sparks (left)
+                        # spawen firing sparks (left)
                         for i in range(4):
                             self.game.sparks.append(Spark(
                                 self.game.projectiles[-1][0], random.random() - 0.5 + math.pi, 2 + random.random()))
-                    if (not self.flip and dis[0] > 0):
+                    if (not self.flip and dtp[0] > 0):
                         self.game.sfx['shoot'].play()
                         self.game.projectiles.append(
                             [[self.rect().centerx + 7, self.rect().centery], 1.5, 0])
-                        # spawen sparks (right)
+                        # spawen firing sparks (right)
                         for i in range(4):
                             self.game.sparks.append(Spark(
                                 self.game.projectiles[-1][0], random.random() - 0.5, 2+random.random()))
-
+        # walk randomly for a while if not already walking
         elif random.random() < 0.01:
             self.walking = random.randint(30, 120)  # half a sec to 2 sec
         super().update(tilemap, movement=movement)
@@ -74,7 +76,6 @@ class Enemy(PhysicsEntity):
                 return True
 
     def render(self, surf, offset=(0, 0)):
-
         super().render(surf, offset)
         if self.flip:
             # flip gun as well

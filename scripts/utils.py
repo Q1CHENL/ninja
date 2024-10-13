@@ -28,8 +28,8 @@ class Animation:
     """
     def __init__(self, images, img_dur=5, loop=True):
         self.images = images
-        self.loop = loop
-        self.img_duration = img_dur
+        self.loop = loop # if we want the animation to loop
+        self.img_duration = img_dur # how many frames we want each image to show
         self.done = False
         self.frame = 0
 
@@ -37,14 +37,15 @@ class Animation:
         return Animation(self.images, self.img_duration, self.loop)
     
     def update(self):
-        # not a simple frame++
+        # not a simple frame++ or index error
         if self.loop:
             self.frame =(self.frame + 1) % (self.img_duration * len(self.images))
         else:
             self.frame = min(self.frame + 1, self.img_duration * len(self.images) - 1)
             if self.frame >= self.img_duration * len(self.images) - 1:
                 self.done = True
-                
+    
+    # get the current image of the animation            
     def img(self):
         # will increase by 1 every single time as frames increases
         # division gives us the index of the imag we should have
