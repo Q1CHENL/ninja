@@ -12,45 +12,59 @@ from scripts.cloud import Clouds
 from scripts.particle import Particle
 from scripts.spark import Spark
 
+variant_player = 0
+variant_enemy = 1
 
 class Game:
     def __init__(self):
         pygame.init()
 
         pygame.display.set_caption('Ninja')
+        # resolution of the window
         self.window_width = 1200
         self.window_height = 900
-        self.screen = pygame.display.set_mode(
-            (self.window_width, self.window_height))
+        self.screen = pygame.display.set_mode((self.window_width, self.window_height))
 
-        # we render on this smaller displayer, and scale up to the bigger screen
-        self.display = pygame.Surface(
-            (320, 240), pygame.SRCALPHA)  # default black
+        # we render on these smaller displays, and scale up to the the bigger window to avoid too small images
+        # the resolution here should math the resolution of the background image, otherwise there will be black space
+        self.display = pygame.Surface((320, 240), pygame.SRCALPHA)  # default black
         self.display_2 = pygame.Surface((320, 240))  # default black
 
         # May want to restrict frame for games since every frame is rendered
         # individually and we don't want out CPU to be overloaded
+        # 1 frame = 1 iteration of the game loop while true
         self.clock = pygame.time.Clock()
 
         self.movement = [False, False]
 
         self.paused = False
+        
+        character_str = 'ninja'
+        character_size = (0, 0)
+        if character_str == 'ninja':
+            character_size = (8, 15)
+        elif character_str == 'pekka':
+            character_size = (60, 47)
+        elif character_str == 'knight':
+            character_size = (21, 22)
+
 
         self.assets = {
             'decor': load_images('tiles/decor'),
             'grass': load_images('tiles/grass'),
             'stone': load_images('tiles/stone'),
+            'pickups': load_images('tiles/pickups'),
             'large_decor': load_images('tiles/large_decor'),
-            'player': load_image('entities/player.png'),
+            character_str : load_image('entities/'+ character_str + '.png'),
             'background': load_image('background_night.png'),
             'clouds': load_images('clouds'),
             'enemy/idle': Animation(load_images('entities/enemy/idle'), img_dur=6),
             'enemy/run': Animation(load_images('entities/enemy/run'), img_dur=4),
-            'player/idle': Animation(load_images('entities/player/idle'), img_dur=6),
-            'player/run': Animation(load_images('entities/player/run'), img_dur=4),
-            'player/jump': Animation(load_images('entities/player/jump')),
-            'player/slide': Animation(load_images('entities/player/slide')),
-            'player/wall_slide': Animation(load_images('entities/player/wall_slide')),
+            character_str + '/idle': Animation(load_images('entities/' + character_str + '/idle'), img_dur=6),
+            character_str + '/run': Animation(load_images('entities/' + character_str + '/run'), img_dur=15),
+            character_str + '/jump': Animation(load_images('entities/'+ character_str + '/jump')),
+            character_str + '/slide': Animation(load_images('entities/' + character_str + '/slide')),
+            character_str + '/wall_slide': Animation(load_images('entities/' + character_str + '/wall_slide')),
             'particle/leaf': Animation(load_images('particles/leaf'), img_dur=20, loop=False),
             'particle/particle': Animation(load_images('particles/particle'), img_dur=6, loop=False),
             'gun': load_image('gun.png'),
@@ -72,10 +86,11 @@ class Game:
 
         self.clouds = Clouds(self.assets['clouds'], count=16)
 
-        self.player = Player(self, (50, 50), (8, 15))
+        self.player = Player(self, (50, 50), character_size)
 
         self.tilemap = Tilemap(self, tile_size=16)
 
+        # Game starts from level 0
         self.level = 0
         self.load_level(self.level)
 
@@ -85,7 +100,7 @@ class Game:
 
     def load_level(self, map_id):
         self.tilemap.load('data/maps/' + str(map_id) + '.json')
-
+        # self.tilemap.load('data/maps/map.json')
         self.leaf_spawners = []
 
         self.enemies = []
@@ -94,20 +109,25 @@ class Game:
             self.leaf_spawners.append(pygame.Rect(
                 4 + tree['pos'][0], 4 + tree['pos'][1], 23, 13))
 
-        for spawner in self.tilemap.extract([('spawners', 0), ('spawners', 1)]):
-            if spawner['variant'] == 0:
-                self.player.pos = spawner['pos']
+        for character in self.tilemap.extract([('character', variant_player), ('character', variant_enemy)]):
+        # for spawner in self.tilemap.extract([('character', 0)]):
+            if character['variant'] == variant_player:
+                self.player.pos = character['pos']
                 self.player.air_time = 0
             else:
-                self.enemies.append(Enemy(self, spawner['pos'], (8, 15)))
+                self.enemies.append(Enemy(self, character['pos'], (8, 15)))
 
         self.projectiles = []
         self.particles = []
         self.sparks = []
 
-        self.scroll = [0, 0]
+        # can be seen as camera's location, used to focus the main view on the player
+        self.camera_offset = [0, 0] 
         self.dead = 0
-        self.transition = -30
+        
+        # for the black circle transition effect between levels
+        # self.transition = -30
+        self.transition = 0
 
     def run(self):
         pygame.mixer.music.load('data/music.wav')
@@ -144,13 +164,12 @@ class Game:
                     if self.dead > 40:  # timer
                         self.load_level(self.level)
 
-                self.scroll[0] += (self.player.rect().centerx -
-                                   self.display.get_width() / 2 - self.scroll[0]) / 30
+                self.camera_offset[0] += (self.player.rect().centerx - self.display.get_width() / 2 - self.camera_offset[0]) / 30
 
-                self.scroll[1] += (self.player.rect().centery -
-                                   self.display.get_height() / 2 - self.scroll[1]) / 30
+                self.camera_offset[1] += (self.player.rect().centery - self.display.get_height() / 2 - self.camera_offset[1]) / 30
 
-                render_scroll = (int(self.scroll[0]), int(self.scroll[1]))
+                render_camera_offset = (int(self.camera_offset[0]), int(self.camera_offset[1]))
+                # render_camera_offset = (0, 0)
 
                 for rect in self.leaf_spawners:
                     # spawn rate: bigger tree spawn more
@@ -163,30 +182,30 @@ class Game:
 
                 self.clouds.update()
                 # cloud no outline: display_2
-                self.clouds.render(self.display_2, offset=render_scroll)
+                self.clouds.render(self.display_2, offset=render_camera_offset)
                 # avoid subpixel movement for the camera
-                self.tilemap.render(self.display, offset=render_scroll)
+                self.tilemap.render(self.display, offset=render_camera_offset)
 
                 for enemy in self.enemies.copy():
                     kill = enemy.update(self.tilemap, (0, 0))
-                    enemy.render(self.display, offset=render_scroll)
+                    enemy.render(self.display, offset=render_camera_offset)
                     if kill:
                         self.enemies.remove(enemy)
                         if not len(self.enemies):
                             self.current_level_passed = True
 
                 if not self.dead:
-                    # movement[1] == 0 since we move left and right
+                    # movement[1] == 0 since we move horizontally
                     self.player.update(
                         self.tilemap, (self.movement[1] - self.movement[0], 0))
-                    self.player.render(self.display, offset=render_scroll)
+                    self.player.render(self.display, camera_offset=render_camera_offset)
 
                 for projectile in self.projectiles.copy():
                     projectile[0][0] += projectile[1]
                     projectile[2] += 1  # timer
                     img = self.assets['projectile']
                     self.display.blit(img, (projectile[0][0] - img.get_width(
-                    ) / 2 - render_scroll[0], projectile[0][1] - img.get_height() / 2 - render_scroll[1]))
+                    ) / 2 - render_camera_offset[0], projectile[0][1] - img.get_height() / 2 - render_camera_offset[1]))
                     if self.tilemap.solid_check(projectile[0]):
                         self.projectiles.remove(projectile)
                         for i in range(4):
@@ -213,7 +232,7 @@ class Game:
 
                 for spark in self.sparks.copy():
                     kill = spark.update()
-                    spark.render(self.display, offset=render_scroll)
+                    spark.render(self.display, offset=render_camera_offset)
                     if kill:
                         self.sparks.remove(spark)
 
@@ -227,7 +246,7 @@ class Game:
 
                 for particle in self.particles.copy():
                     kill = particle.update()
-                    particle.render(self.display, offset=render_scroll)
+                    particle.render(self.display, offset=render_camera_offset)
                     if particle.type == 'leaf':
                         # move particle back and forth naturally
                         particle.pos[0] += math.sin(
@@ -260,8 +279,7 @@ class Game:
                         self.movement[1] = False
             if self.transition:
                 transition_surf = pygame.Surface(self.display.get_size())
-                pygame.draw.circle(transition_surf, (255, 255, 255), (self.display.get_width(
-                ) // 2, self.display.get_height() // 2), (30 - abs(self.transition)) * 8)
+                pygame.draw.circle(transition_surf, (255, 255, 255), (self.display.get_width() // 2, self.display.get_height() // 2), (30 - abs(self.transition)) * 8)
                 transition_surf.set_colorkey((255, 255, 255))
                 self.display.blit(transition_surf, (0, 0))
 
@@ -271,8 +289,10 @@ class Game:
                                   random.random() * self.screenshake - self.screenshake/2)
             self.screen.blit(pygame.transform.scale(
                 self.display_2, self.screen.get_size()), screenshake_offset)
+            # self.screen.blit(pygame.transform.scale(
+            #     self.display, self.screen.get_size()), screenshake_offset)
+            
             if self.paused:
-
                 # Draw a semi-transparent overlay
                 overlay = pygame.Surface(
                     (self.window_width, self.window_height))
@@ -287,8 +307,9 @@ class Game:
                 text_rect = paused_text.get_rect(center=(self.screen.get_width() / 2,
                                                          self.screen.get_height() / 2 - paused_text.get_height() / 2))
                 self.screen.blit(paused_text, text_rect)
+            # update everything on the screen
             pygame.display.update()
-            self.clock.tick(60)  # 60 fps
+            self.clock.tick(60)  # 60 fps of the while true loop using sleep mechanism
 
 
 Game().run()
