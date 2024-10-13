@@ -27,7 +27,7 @@ class Editor:
             'grass': load_images('tiles/grass'),
             'stone': load_images('tiles/stone'),
             'large_decor': load_images('tiles/large_decor'),
-            'spawners': load_images('tiles/spawners')
+            'character': load_images('tiles/spawners')
         }
         self.movement = [False, False, False, False]
 
