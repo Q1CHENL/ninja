@@ -74,11 +74,11 @@ class Game:
         }
 
         self.sfx = {
-            'jump': pygame.mixer.Sound('data/sfx/jump.wav'),
-            'dash': pygame.mixer.Sound('data/sfx/dash.wav'),
-            'hit': pygame.mixer.Sound('data/sfx/hit.wav'),
-            'shoot': pygame.mixer.Sound('data/sfx/shoot.wav'),
-            'ambience': pygame.mixer.Sound('data/sfx/ambience.wav'),
+            'jump': pygame.mixer.Sound('assets/sfx/jump.wav'),
+            'dash': pygame.mixer.Sound('assets/sfx/dash.wav'),
+            'hit': pygame.mixer.Sound('assets/sfx/hit.wav'),
+            'shoot': pygame.mixer.Sound('assets/sfx/shoot.wav'),
+            'ambience': pygame.mixer.Sound('assets/sfx/ambience.wav'),
         }
         self.sfx['ambience'].set_volume(0.2)
         self.sfx['shoot'].set_volume(0.4)
@@ -101,8 +101,8 @@ class Game:
         self.current_level_passed = False
 
     def load_level(self, map_id):
-        self.tilemap.load('data/maps/' + str(map_id) + '.json')
-        # self.tilemap.load('data/maps/map.json')
+        self.tilemap.load('assets/maps/' + str(map_id) + '.json')
+        # self.tilemap.load('assets/maps/map.json')
         self.leaf_spawners = []
 
         self.enemies = []
@@ -132,7 +132,7 @@ class Game:
         self.transition = -30
 
     def run(self):
-        pygame.mixer.music.load('data/music.wav')
+        pygame.mixer.music.load('assets/music.wav')
         pygame.mixer.music.set_volume(0.5)
         pygame.mixer.music.play(-1)  # negative: loop forever
         self.sfx['ambience'].play(-1)
@@ -152,7 +152,7 @@ class Game:
                     if self.transition > 30:
                         # ensure don't go above max level
                         self.level = min(
-                            self.level + 1, len(os.listdir('data/maps')) - 1)
+                            self.level + 1, len(os.listdir('assets/maps')) - 1)
                         # load level when complete black
                         self.load_level(self.level)
                         self.current_level_passed = False
