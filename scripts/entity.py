@@ -18,7 +18,7 @@ class PhysicsEntity:
         self.anim_offset = (-3, -3)  
 
 
-        self.flip = False  # right and left
+        self.flip = True  # right and left
         self.set_action('idle') # to set which animation we are currently using
 
         self.last_movement = [0, 0]

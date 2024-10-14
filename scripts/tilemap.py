@@ -17,6 +17,9 @@ AUTOTILE_MAP = {
 PHYSICS_TILES = {'grass', 'stone'}  # faster than list
 AUTOTILE_TYPES = {'grass', 'stone'}
 
+NEIGHBOR_OFFSETS = [(-1, 0), (-1, -1), (0, -1), (1, -1),
+                    (1, 0), (0, 0), (-1, 1), (0, 1), (1, 1)]
+
 
 class Tilemap:
     def __init__(self, game, tile_size=16):
@@ -56,7 +59,7 @@ class Tilemap:
     
     def physics_rects_around(self, pos, entity_width, entity_height):
         rects = []
-        for tile in self.tiles_around(pos, entity_width, entity_height):
+        for tile in self.tiles_around(pos):
             if tile['type'] in PHYSICS_TILES:
                 rects.append(pygame.Rect(tile['pos'][0] * self.tile_size, 
                                          tile['pos'][1] * self.tile_size, 
@@ -64,33 +67,17 @@ class Tilemap:
                                          self.tile_size))
         return rects
 
-    def tiles_around(self, enitity_pos, entity_img_width, entity_img_height):
-        outline_locs = []
-        tiles_num_x = math.ceil(entity_img_width / self.tile_size)
-        tiles_num_y = math.ceil(entity_img_height / self.tile_size)
-        entity_tile_loc = (int(enitity_pos[0] // self.tile_size), int(enitity_pos[1] // self.tile_size))
-        # tiles on the left and right
-        for i in {-1, tiles_num_x}:
-            for j in range(0, tiles_num_y + 1):
-                outline_loc = str(max(0, entity_tile_loc[0] + i)) + ';' + str(entity_tile_loc[1] + j)
-                if outline_loc in self.tilemap:
-                    outline_locs.append(self.tilemap[outline_loc])
-        # tiles on the top and bottom
-        for i in {-1, tiles_num_y}:
-            for j in range(0, tiles_num_x + 1):
-                outline_loc = str(entity_tile_loc[0] + j ) + ';' + str(entity_tile_loc[1] + i)
-                if outline_loc in self.tilemap:
-                    outline_locs.append(self.tilemap[outline_loc])
-        topleft_loc = str(max(0, entity_tile_loc[0] - 1)) + ';' + str(max(0, entity_tile_loc[1] - 1))
-        if topleft_loc in self.tilemap:
-            outline_locs.append(self.tilemap[topleft_loc])
-        for i in range(0, tiles_num_x):
-            for j in range(0, tiles_num_y):
-                selfloc = str(entity_tile_loc[0] + i) + ';' + str(entity_tile_loc[1] + j)
-                if selfloc in self.tilemap:
-                    outline_locs.append(self.tilemap[selfloc])
-        return outline_locs
-                
+    def tiles_around(self, pos):
+        tiles = []
+        tile_loc = (int(pos[0] // self.tile_size),
+                    int(pos[1] // self.tile_size))
+        for offset in NEIGHBOR_OFFSETS:
+            check_loc = str(tile_loc[0] + offset[0]) + \
+                ';' + str(tile_loc[1] + offset[1])
+            if check_loc in self.tilemap:
+                tiles.append(self.tilemap[check_loc])
+        return tiles
+        
         
     def save(self, path):
         f = open(path, 'w')

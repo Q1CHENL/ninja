@@ -46,7 +46,7 @@ class Enemy(PhysicsEntity):
                         # spawen firing sparks (right)
                         for i in range(4):
                             self.game.sparks.append(Spark(
-                                self.game.projectiles[-1][0], random.random() - 0.5, 2+random.random()))
+                                self.game.projectiles[-1][0], random.random() - 0.5, 2 + random.random()))
         # walk randomly for a while if not already walking
         elif random.random() < 0.01:
             self.walking = random.randint(30, 120)  # half a sec to 2 sec
@@ -55,7 +55,8 @@ class Enemy(PhysicsEntity):
             self.set_action('run')
         else:
             self.set_action('idle')
-
+            
+        # killed by player dashing
         if abs(self.game.player.dashing) >= 50:
             if self.rect().colliderect(self.game.player.rect()):
                 self.game.screenshake = max(16, self.game.screenshake)
@@ -74,6 +75,17 @@ class Enemy(PhysicsEntity):
                 self.game.sparks.append(
                     Spark(self.rect().center, math.pi, 5 + random.random()))
                 return True
+        for shuriken in self.game.shuriken.copy():
+            if self.rect().collidepoint(shuriken[0]):
+                self.game.sfx['hit'].play()
+                self.game.screenshake = max(16, self.game.screenshake)
+                for i in range(30):
+                    angle = random.random() * math.pi * 2
+                    speed = random.random() * 5
+                    self.game.sparks.append(
+                        Spark(self.rect().center, angle, 2 + random.random()))
+                return True
+
 
     def render(self, surf, offset=(0, 0)):
         super().render(surf, offset)

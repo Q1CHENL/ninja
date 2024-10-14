@@ -51,6 +51,8 @@ class Player(PhysicsEntity):
             if self.air_time > 4:
                 # show jump image if player's been in the air for 4 time units
                 self.set_action('jump')
+            elif abs(self.dashing) > 50:
+                self.set_action('dash')
             elif movement[0] != 0:  
                 # player is moving horizontally
                 self.set_action('run')
@@ -74,7 +76,7 @@ class Player(PhysicsEntity):
         if abs(self.dashing) > 50: # in the first 10 frames of dashing
             # seems like 50 mean we dash for 60 - 50 = 10 frames
             # the actual dash: 8 times speed, detemines the distance of dash as well
-            self.velocity[0] = abs(self.dashing) / self.dashing * 8
+            self.velocity[0] = abs(self.dashing) / self.dashing * 6
             # at the end of the first 10 frames of dashing, we severely reduce the speed
             if abs(self.dashing) == 51:
                 # achieve sudden stop of dash
@@ -116,11 +118,10 @@ class Player(PhysicsEntity):
             self.jumps -= 1
             self.air_time = 5  # a number bigger than 4 so the jump image will show
             return True
-
-    def render(self, surf, camera_offset=(0, 0)):
-        # make player invisible if we are not in the first 10 frames of dashing
-        if abs(self.dashing) <= 50:
-            super().render(surf, camera_offset=camera_offset)
+        
+    def attack(self):
+        velocity = -7.5 if self.flip else 7.5
+        self.game.shuriken.append([[self.rect().centerx - 7, self.rect().centery], velocity, 0])
 
     def dash(self):
         if not self.dashing:
@@ -129,3 +130,8 @@ class Player(PhysicsEntity):
                 self.dashing = -60
             else:
                 self.dashing = 60
+                
+    def render(self, surf, camera_offset=(0, 0)):
+        # make player invisible if we are not in the first 10 frames of dashing
+        # if abs(self.dashing) <= 50:
+            super().render(surf, camera_offset=camera_offset)
